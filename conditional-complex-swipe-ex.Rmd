@@ -15,7 +15,8 @@ Vereinfachen Sie folgende Funktion, ohne ihre Funktionsweise zu verändern:
 #   swiper: list object representing somebody swiping left or right in a dating app
 #   profile: list object representing the profile of the person who is being swiped left or right
 # output: TRUE/FALSE
-swipe_right <- function(swiper, profile) {
+
+swipe_right_old <- function(swiper, profile) {
   if (profile[["has_picture"]]) {
     if (profile[["picture_attractive"]]) {
       if (swiper[["sober"]]) {
@@ -42,42 +43,105 @@ swipe_right <- function(swiper, profile) {
     stop("can't decide without a picture.")
   }
 }
+
+swipe_right <- function(swiper, profile) {
+  if (profile[["has_picture"]]) {
+    if (profile[["picture_attractive"]]) {
+      if (!swiper[["sober"]]) {
+        return(TRUE)
+      }
+      else if (all(is.na(profile[["likes"]]))) {
+        stop("can't decide without informative profile.")
+      }
+      else if (any(swiper[["likes"]] %in% profile[["likes"]]) && !profile[["rather_weird"]]) {
+        return(TRUE)
+      }
+      else {
+        return(FALSE)
+      }
+    }
+    else {
+      return(FALSE)
+    }
+  }
+  else {
+    stop("can't decide without a picture.")
+  }
+}
 ```
 
 Benutzen Sie die folgenden Codebeispiele um zu prüfen ob Ihre modifizierte Funktion auch wirklich das selbe tut.  
 *Bonusaufgabe: wandeln Sie das hier in vernünftige `testthat`-Tests um...*
 
 ```{r, examples-swipe-right, error = TRUE}
+library(testthat)
+
 test_swipers <- list(
-  sober_swiper = list(sober = TRUE, 
-                      likes = c("penguins", "FORTRAN",  "casual sex")),
-  drunk_swiper = list(sober = FALSE, 
-                      likes = c("dogs", "yoga", "Markus Söder"))
+  sober_swiper = list(
+    sober = TRUE,
+    likes = c("penguins", "FORTRAN", "casual sex")
+  ),
+  drunk_swiper = list(
+    sober = FALSE,
+    likes = c("dogs", "yoga", "Markus Söder")
+  )
 )
 
 test_profiles <- list(
-  hot_1 = list(has_picture = TRUE, picture_attractive = TRUE,
-               rather_weird = FALSE, likes = "penguins"),
-  hot_2 = list(has_picture = TRUE, picture_attractive = TRUE,
-               rather_weird = FALSE, likes = "Pokemon"),
-  hotweird = list(has_picture = TRUE, picture_attractive = TRUE,
-                  rather_weird = TRUE, likes = "penguins"),
-  nothot_1 = list(has_picture = TRUE, picture_attractive = FALSE,
-                  rather_weird = FALSE, likes = "Markus Söder"),
-  nothot_2 = list(has_picture = TRUE, picture_attractive = FALSE,
-                  rather_weird = FALSE, likes = "cats"),
-  no_pic = list(has_picture = FALSE, picture_attractive = NA,
-                likes = c("hamsters", "yoga"))
+  hot_1 = list(
+    has_picture = TRUE, picture_attractive = TRUE,
+    rather_weird = FALSE, likes = "penguins"
+  ),
+  hot_2 = list(
+    has_picture = TRUE, picture_attractive = TRUE,
+    rather_weird = FALSE, likes = "Pokemon"
+  ),
+  hotweird = list(
+    has_picture = TRUE, picture_attractive = TRUE,
+    rather_weird = TRUE, likes = "penguins"
+  ),
+  nothot_1 = list(
+    has_picture = TRUE, picture_attractive = FALSE,
+    rather_weird = FALSE, likes = "Markus Söder"
+  ),
+  nothot_2 = list(
+    has_picture = TRUE, picture_attractive = FALSE,
+    rather_weird = FALSE, likes = "cats"
+  ),
+  no_pic = list(
+    has_picture = FALSE, picture_attractive = NA,
+    likes = c("hamsters", "yoga")
+  )
 )
 
 # check all combinations:
-for(swiper in names(test_swipers)) {
-  for(profile in names(test_profiles)) {
-    cat("Does", swiper, "swipe right on", profile, "?",
-        try(swipe_right(test_swipers[[swiper]], test_profiles[[profile]]), silent = TRUE),
-        "\n")
+for (swiper in names(test_swipers)) {
+  for (profile in names(test_profiles)) {
+    old_result <- try(swipe_right_old(test_swipers[[swiper]], test_profiles[[profile]]), silent = TRUE)
+    if (is(old_result, "try-error")) {
+      try_picture_error <- try(expect_error(swipe_right_old(test_swipers[[1]], test_profiles[[6]]), "can't decide without a picture."))
+      if (is(try_picture_error, "try-error")) {
+        test_that(
+          "both functions have equivalent behaviour",
+          expect_error(swipe_right(test_swipers[[swiper]], test_profiles[[profile]]), "can't decide without informative profile.")
+        )
+      }
+      else {
+        test_that(
+          "both functions have equivalent behaviour",
+          expect_error(swipe_right(test_swipers[[swiper]], test_profiles[[profile]]), "can't decide without a picture.")
+        )
+      }
+    }
+    else {
+      test_that(
+        "both functions have equivalent behaviour",
+        expect_equal(
+          swipe_right_old(test_swipers[[swiper]], test_profiles[[profile]]),
+          swipe_right(test_swipers[[swiper]], test_profiles[[profile]])
+        )
+      )
+    }
   }
 }
 ```
-
-
