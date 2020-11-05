@@ -1,29 +1,16 @@
 ## Frisch aus dem Trockner, gut für die *confidence*
 
 ```{r eval = FALSE, tidy=FALSE}
-x<-rnorm(100)
-y<-rnorm(100)
-z<-rnorm(100)
-v=z^2  
+generate_confidence_interval <- function(x) {
+  sample_size <- length(x)
+  sample_mean <- mean(x)
+  sample_sd <- sd(x)
+  half_width <- 1.96 * sample_sd / sqrt(sample_size)
+  c(sample_mean - half_width, sample_mean + half_width)
+}
 
-m <- mean(x); s <- sd(x); n <- length(x)
-c(m - 1.96*s/sqrt(n), m + 1.96*s/sqrt(n))
-
-m <- mean(y)
-s <- sd(y)
-n <- length(y)
-c(m - 1.96*s/sqrt(n), m + 1.96*s/sqrt(n))
-
-n <- length(z)
-m <-  mean(z)
-s <-sd(z)
-c(m-1.96*s/sqrt(n),m+1.96*s/sqrt(n))
-
-n <- length(v)
-m <- mean(v)
-s <- sd(v)
-half_width <- 1.96*s/sqrt(n)
-c(m - half_width, m + half_width)
+generate_confidence_interval(runif(100))
+generate_confidence_interval(runif(100)^2)
 ``` 
 
 Bei so abscheulichem "copy-paste-modify" Code wie dem hier sollten Sie direkt schweiß*nasse* Hände bekommen, denn "**w**rite **e**verything **t**wice" ist der sichere Weg ins Verderben.  
