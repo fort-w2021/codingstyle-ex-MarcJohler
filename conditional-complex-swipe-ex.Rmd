@@ -45,22 +45,22 @@ swipe_right_old <- function(swiper, profile) {
   }
 }
 
-# finds out if swiper swipes right for a specific profile (better style):
-swipe_right <- function(swiper, profile) {
-
-  # check requirements on swipers' elements
-  checkmate::assert(check_list(swiper, min.len = 2, max.len = 2),
-    check_names(names(swiper), permutation.of = c("sober", "likes")),
+#checks swiper requirements
+check_swiper <- function(swiper){
+  # first check for required length and names
+  checkmate::assert(check_list(swiper, min.len = 2, max.len = 2), 
+    check_names(names(swiper), permutation.of = c("sober", "likes")), 
     combine = "and"
   )
   # check requirements on each swipers variables
-  checkmate::assert(check_flag(swiper[["sober"]]),
-    check_atomic_vector(swiper[["likes"]]),
+  checkmate::assert(check_flag(swiper[["sober"]]), 
+    check_atomic_vector(swiper[["likes"]]), 
     combine = "and"
   )
+}
 
-
-  ## check requirements on 'profile'
+#checks profile requirements
+check_profile <- function(profile, swiper){
   # first check for required length
   checkmate::assert_list(profile, min.len = 3, max.len = 4)
 
@@ -98,8 +98,18 @@ swipe_right <- function(swiper, profile) {
     # if there is no profile picture, 'picture_attractive' must be NA
     checkmate::assert(is.na(profile[["picture_attractive"]]))
   }
+}
 
+# finds out if swiper swipes right for a specific profile (better style):
+swipe_right <- function(swiper, profile) {
 
+  #check requirements on swiper
+  check_swiper(swiper)
+  
+  #check requirements on profile (dependent from swiper)
+  check_profile(profile, swiper)
+  
+  #actual algorithm for solving the problem
   if (profile[["has_picture"]]) {
     # if there is a profile picture start the decision process
     if (profile[["picture_attractive"]]) {
@@ -168,53 +178,85 @@ test_profiles <- list(
   )
 )
 
-#for these cases both functions behave differently, because the new version is programmed in a more defensive way
+# note that for some of these cases both functions give different error messages, 
+#because the new version is programmed in a more defensive way
 test_profiles2 <- list(
 incognito_1 = list(
-    has_picture = TRUE, picture_attractive = NA,
-    likes = c("games")
+    has_picture = TRUE, picture_attractive = NA, 
+    likes = "games"
   ),
   hot_3 = list(
-    has_picture = TRUE, picture_attractive = TRUE,
-    likes = c(NA,NA,NA), rather_weird = FALSE
+    has_picture = TRUE, picture_attractive = TRUE, 
+    likes = c(NA, NA, NA), rather_weird = FALSE
   ),
   hot_4 = list(
-    has_picture = TRUE, picture_attractive = TRUE,
-    likes = c("games","fun","penguins","yoga",NA)
+    has_picture = TRUE, picture_attractive = TRUE, 
+    likes = c("games", "fun", "penguins", "yoga", NA)
   ),
   nothot_3 = list(
     has_picture = TRUE, picture_attractive = FALSE,
-    likes = c(NA,NA,NA)
+    likes = c(NA, NA, NA)
   )
 )
   
 
 # check all combinations:
-test_swipe_right <- function(test_swiper, test_profiles) {
-  for (swiper in names(test_swipers)) {
-    for (profile in names(test_profiles)) {
-      old_result <- try(swipe_right_old(test_swipers[[swiper]], test_profiles[[profile]]), silent = TRUE)
+test_swipe_right <- function(swipers, profiles) {
+  for (swiper in names(swipers)) {
+    for (profile in names(profiles)) {
+      #check if the old function produces an error...
+      old_result <- try(swipe_right_old(swipers[[swiper]], 
+                                        profiles[[profile]]), 
+                        silent = TRUE)
+      
       if (is(old_result, "try-error")) {
-        try_picture_error <- try(expect_error(swipe_right_old(test_swipers[[1]], test_profiles[[6]]), "can't decide without a picture."))
-        if (is(try_picture_error, "try-error")) {
+        #...if yes, take a look what the reason is
+        try_picture_error <- try(expect_error(swipe_right_old(swipers[[swiper]], 
+                                                              profiles[[profile]]), 
+                                              "can't decide without a picture."),
+                                 silent = TRUE)
+        try_information_error <- try(expect_error(swipe_right_old(swipers[[swiper]], 
+                                                              profiles[[profile]]), 
+                                              "can't decide without informative profile."),
+                                     silent = TRUE)
+        
+        if (is(try_picture_error,"try-error") && is(try_information_error,"try-error")) {
+          #if the error is unknown, simply check if the new function also produces an error
           testthat::test_that(
             "both functions have equivalent behaviour",
-            expect_error(swipe_right(test_swipers[[swiper]], test_profiles[[profile]]), "can't decide without informative profile.")
+            expect_error(swipe_right(swipers[[swiper]], 
+                                     profiles[[profile]]) 
+                         )
+          )
+        }
+        else if (is(try_information_error,"try-error")) {
+          #if the error is known but not caused by a missing profile picture,
+          #it must be caused by missing information on the profiles 'likes'
+          testthat::test_that(
+            "both functions have equivalent behaviour",
+            expect_error(swipe_right(swipers[[swiper]], 
+                                     profiles[[profile]]), 
+                         "can't decide without a picture.")
           )
         }
         else {
+          #if the error is known but not caused by a missing information on the profiles 'likes', 
+          #it must be caused by a missing profile picture
           testthat::test_that(
             "both functions have equivalent behaviour",
-            expect_error(swipe_right(test_swipers[[swiper]], test_profiles[[profile]]), "can't decide without a picture.")
+            expect_error(swipe_right(swipers[[swiper]], 
+                                     profiles[[profile]]), 
+                         "can't decide without informative profile.")
           )
         }
       }
       else {
+        #if there is no error simply compare the output of both functions
         testthat::test_that(
           "both functions have equivalent behaviour",
           expect_equal(
-            swipe_right_old(test_swipers[[swiper]], test_profiles[[profile]]),
-            swipe_right(test_swipers[[swiper]], test_profiles[[profile]])
+            swipe_right_old(swipers[[swiper]], profiles[[profile]]),
+            swipe_right(swipers[[swiper]], profiles[[profile]])
           )
         )
       }
@@ -222,7 +264,7 @@ test_swipe_right <- function(test_swiper, test_profiles) {
   }
 }
 
-test_swipe_right(test_swipers,test_profiles)
-test_swipe_right(test_swipers,test_profiles2)
+test_swipe_right(test_swipers, test_profiles)
+test_swipe_right(test_swipers, test_profiles2)
 
 ```
