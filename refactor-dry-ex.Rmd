@@ -1,12 +1,23 @@
 ## Frisch aus dem Trockner, gut für die *confidence*
 
 ```{r eval = FALSE, tidy=FALSE}
-generate_confidence_interval <- function(x) {
-  sample_size <- length(x)
-  sample_mean <- mean(x)
-  sample_sd <- sd(x)
-  half_width <- 1.96 * sample_sd / sqrt(sample_size)
-  c(sample_mean - half_width, sample_mean + half_width)
+
+#computes a confidence interval from a sample:
+generate_confidence_interval <- function(sample_vector) {
+  #check if input is a numerical vector with length >= 2 
+  #(otherwise standard deviation cannot be computed)
+  assert_numeric(sample_vector,
+                 any.missing = FALSE,
+                 min.len = 2)
+  
+  #compute confidence interval
+  sample_size <- length(sample_vector)
+  sample_mean <- mean(sample_vector)
+  sample_sd <- sd(sample_vector)
+  interval_half_width <- 1.96 * sample_sd / sqrt(sample_size)
+  interval <- c(sample_mean - interval_half_width, 
+                sample_mean + interval_half_width)
+  return(interval)
 }
 
 generate_confidence_interval(runif(100))

@@ -16,6 +16,7 @@ Vereinfachen Sie folgende Funktion, ohne ihre Funktionsweise zu verändern:
 #   profile: list object representing the profile of the person who is being swiped left or right
 # output: TRUE/FALSE
 
+# finds out if swiper swipes right for a specific profile but is in a bad style:
 swipe_right_old <- function(swiper, profile) {
   if (profile[["has_picture"]]) {
     if (profile[["picture_attractive"]]) {
@@ -44,29 +45,84 @@ swipe_right_old <- function(swiper, profile) {
   }
 }
 
+# finds out if swiper swipes right for a specific profile (better style):
 swipe_right <- function(swiper, profile) {
+
+  # check requirements on swipers' elements
+  checkmate::assert(check_list(swiper, min.len = 2, max.len = 2),
+    check_names(names(swiper), permutation.of = c("sober", "likes")),
+    combine = "and"
+  )
+  # check requirements on each swipers variables
+  checkmate::assert(check_flag(swiper[["sober"]]),
+    check_atomic_vector(swiper[["likes"]]),
+    combine = "and"
+  )
+
+
+  ## check requirements on 'profile'
+  # first check for required length
+  checkmate::assert_list(profile, min.len = 3, max.len = 4)
+
+  # then check if the names are correct ('rather_weird' can be left out in the input, if there is no profile picture)
+  checkmate::assert(check_names(names(profile),
+    permutation.of = c("has_picture", "picture_attractive", "rather_weird", "likes")
+  ),
+  check_names(names(profile),
+    permutation.of = c("has_picture", "picture_attractive", "likes")
+  ),
+  combine = "or"
+  )
+
+  # check if the respective name refers to the correct variable
+  checkmate::assert(check_flag(profile[["has_picture"]]),
+    check_flag(profile[["picture_attractive"]], na.ok = TRUE),
+    check_atomic_vector(profile[["likes"]], min.len = 1),
+    combine = "and"
+  )
+
+  # if 'rather_weird' is defined check for it's type
+  if ("rather_weird" %in% names(profile)) {
+    checkmate::assert_flag(profile[["rather_weird"]])
+  }
+
+  # if 'has_picture' is TRUE, there must be a non NA entry for 'picture_attractive'
   if (profile[["has_picture"]]) {
-    if (profile[["picture_attractive"]]) {
-      if (!swiper[["sober"]]) {
-        return(TRUE)
-      }
-      else if (all(is.na(profile[["likes"]]))) {
-        stop("can't decide without informative profile.")
-      }
-      else if (any(swiper[["likes"]] %in% profile[["likes"]]) && !profile[["rather_weird"]]) {
-        return(TRUE)
-      }
-      else {
-        return(FALSE)
-      }
-    }
-    else {
-      return(FALSE)
+    checkmate::assert_flag(profile[["picture_attractive"]], na.ok = FALSE)
+    # if 'picture_attractive' is TRUE the swiper needs more information if he/she is sober
+    if (swiper[["sober"]] && any(!is.na(profile[["likes"]]))) {
+      checkmate::assert(check_flag(profile[["rather_weird"]], na.ok = FALSE))
     }
   }
   else {
-    stop("can't decide without a picture.")
+    # if there is no profile picture, 'picture_attractive' must be NA
+    checkmate::assert(is.na(profile[["picture_attractive"]]))
   }
+
+
+  if (profile[["has_picture"]]) {
+    # if there is a profile picture start the decision process
+    if (profile[["picture_attractive"]]) {
+      # if the picture is attractive continue the decision process
+      if (!swiper[["sober"]]) {
+        # if the swiper is drunk, this is enough to swipe right
+        return(TRUE)
+      }
+      if (all(is.na(profile[["likes"]]))) {
+        # if the swiper is sober, check if the profile shows interests
+        # only continue, if yes
+        stop("can't decide without informative profile.")
+      }
+      if (any(swiper[["likes"]] %in% profile[["likes"]]) && profile[["rather_weird"]] == FALSE) {
+        # if the swiper has common interests with the profile, swipe right
+        return(TRUE)
+      }
+    }
+    # in any other case with exiting profile picture swipe left
+    return(FALSE)
+  }
+  # if there is no profile picture throw an error
+  stop("can't decide without a picture.")
 }
 ```
 
@@ -74,8 +130,6 @@ Benutzen Sie die folgenden Codebeispiele um zu prüfen ob Ihre modifizierte Funk
 *Bonusaufgabe: wandeln Sie das hier in vernünftige `testthat`-Tests um...*
 
 ```{r, examples-swipe-right, error = TRUE}
-library(testthat)
-
 test_swipers <- list(
   sober_swiper = list(
     sober = TRUE,
@@ -114,34 +168,61 @@ test_profiles <- list(
   )
 )
 
+#for these cases both functions behave differently, because the new version is programmed in a more defensive way
+test_profiles2 <- list(
+incognito_1 = list(
+    has_picture = TRUE, picture_attractive = NA,
+    likes = c("games")
+  ),
+  hot_3 = list(
+    has_picture = TRUE, picture_attractive = TRUE,
+    likes = c(NA,NA,NA), rather_weird = FALSE
+  ),
+  hot_4 = list(
+    has_picture = TRUE, picture_attractive = TRUE,
+    likes = c("games","fun","penguins","yoga",NA)
+  ),
+  nothot_3 = list(
+    has_picture = TRUE, picture_attractive = FALSE,
+    likes = c(NA,NA,NA)
+  )
+)
+  
+
 # check all combinations:
-for (swiper in names(test_swipers)) {
-  for (profile in names(test_profiles)) {
-    old_result <- try(swipe_right_old(test_swipers[[swiper]], test_profiles[[profile]]), silent = TRUE)
-    if (is(old_result, "try-error")) {
-      try_picture_error <- try(expect_error(swipe_right_old(test_swipers[[1]], test_profiles[[6]]), "can't decide without a picture."))
-      if (is(try_picture_error, "try-error")) {
-        test_that(
-          "both functions have equivalent behaviour",
-          expect_error(swipe_right(test_swipers[[swiper]], test_profiles[[profile]]), "can't decide without informative profile.")
-        )
+test_swipe_right <- function(test_swiper, test_profiles) {
+  for (swiper in names(test_swipers)) {
+    for (profile in names(test_profiles)) {
+      old_result <- try(swipe_right_old(test_swipers[[swiper]], test_profiles[[profile]]), silent = TRUE)
+      if (is(old_result, "try-error")) {
+        try_picture_error <- try(expect_error(swipe_right_old(test_swipers[[1]], test_profiles[[6]]), "can't decide without a picture."))
+        if (is(try_picture_error, "try-error")) {
+          testthat::test_that(
+            "both functions have equivalent behaviour",
+            expect_error(swipe_right(test_swipers[[swiper]], test_profiles[[profile]]), "can't decide without informative profile.")
+          )
+        }
+        else {
+          testthat::test_that(
+            "both functions have equivalent behaviour",
+            expect_error(swipe_right(test_swipers[[swiper]], test_profiles[[profile]]), "can't decide without a picture.")
+          )
+        }
       }
       else {
-        test_that(
+        testthat::test_that(
           "both functions have equivalent behaviour",
-          expect_error(swipe_right(test_swipers[[swiper]], test_profiles[[profile]]), "can't decide without a picture.")
+          expect_equal(
+            swipe_right_old(test_swipers[[swiper]], test_profiles[[profile]]),
+            swipe_right(test_swipers[[swiper]], test_profiles[[profile]])
+          )
         )
       }
-    }
-    else {
-      test_that(
-        "both functions have equivalent behaviour",
-        expect_equal(
-          swipe_right_old(test_swipers[[swiper]], test_profiles[[profile]]),
-          swipe_right(test_swipers[[swiper]], test_profiles[[profile]])
-        )
-      )
     }
   }
 }
+
+test_swipe_right(test_swipers,test_profiles)
+test_swipe_right(test_swipers,test_profiles2)
+
 ```
