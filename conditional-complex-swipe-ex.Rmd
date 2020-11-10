@@ -48,13 +48,13 @@ swipe_right_old <- function(swiper, profile) {
 #checks swiper requirements
 check_swiper <- function(swiper){
   # first check for required length and names
-  checkmate::assert(check_list(swiper, min.len = 2, max.len = 2), 
-    check_names(names(swiper), permutation.of = c("sober", "likes")), 
+  checkmate::assert(checkmate::check_list(swiper, len = 2), 
+    checkmate::check_names(names(swiper), permutation.of = c("sober", "likes")), 
     combine = "and"
   )
   # check requirements on each swipers variables
-  checkmate::assert(check_flag(swiper[["sober"]]), 
-    check_atomic_vector(swiper[["likes"]]), 
+  checkmate::assert(checkmate::check_flag(swiper[["sober"]]), 
+    checkmate::check_atomic_vector(swiper[["likes"]]), 
     combine = "and"
   )
 }
@@ -65,19 +65,20 @@ check_profile <- function(profile, swiper){
   checkmate::assert_list(profile, min.len = 3, max.len = 4)
 
   # then check if the names are correct ('rather_weird' can be left out in the input, if there is no profile picture)
-  checkmate::assert(check_names(names(profile),
+  checkmate::assert(checkmate::check_names(names(profile),
     permutation.of = c("has_picture", "picture_attractive", "rather_weird", "likes")
   ),
-  check_names(names(profile),
+  checkmate::check_names(names(profile),
     permutation.of = c("has_picture", "picture_attractive", "likes")
   ),
   combine = "or"
   )
 
   # check if the respective name refers to the correct variable
-  checkmate::assert(check_flag(profile[["has_picture"]]),
-    check_flag(profile[["picture_attractive"]], na.ok = TRUE),
-    check_atomic_vector(profile[["likes"]], min.len = 1),
+  # TEST WILL THROW ERROR MESSAGE WITH WRONG VARIABLE NAME! (ASK DR. SCHEIPL HOW TO FIX IT)
+  checkmate::assert(checkmate::check_flag(profile[["has_picture"]]),
+    checkmate::check_flag(profile[["picture_attractive"]], na.ok = TRUE),
+    checkmate::check_atomic_vector(profile[["likes"]], min.len = 1),
     combine = "and"
   )
 
@@ -91,7 +92,7 @@ check_profile <- function(profile, swiper){
     checkmate::assert_flag(profile[["picture_attractive"]], na.ok = FALSE)
     # if 'picture_attractive' is TRUE the swiper needs more information if he/she is sober
     if (swiper[["sober"]] && any(!is.na(profile[["likes"]]))) {
-      checkmate::assert(check_flag(profile[["rather_weird"]], na.ok = FALSE))
+      checkmate::assert(checkmate::check_flag(profile[["rather_weird"]], na.ok = FALSE))
     }
   }
   else {
@@ -196,9 +197,15 @@ incognito_1 = list(
   nothot_3 = list(
     has_picture = TRUE, picture_attractive = FALSE,
     likes = c(NA, NA, NA)
+  ),
+  what = list(
+    has_picture = TRUE, picture_attractive = TRUE,
+    likes = diag(1, 4, 4), rather_weird = FALSE
   )
 )
   
+#throws the wrong error message:
+swipe_right(test_swipers[[1]], test_profiles2[[5]])
 
 # check all combinations:
 test_swipe_right <- function(swipers, profiles) {
@@ -211,30 +218,30 @@ test_swipe_right <- function(swipers, profiles) {
       
       if (is(old_result, "try-error")) {
         #...if yes, take a look what the reason is
-        try_picture_error <- try(expect_error(swipe_right_old(swipers[[swiper]], 
+        try_picture_error <- try(testthat::expect_error(swipe_right_old(swipers[[swiper]], 
                                                               profiles[[profile]]), 
                                               "can't decide without a picture."),
                                  silent = TRUE)
-        try_information_error <- try(expect_error(swipe_right_old(swipers[[swiper]], 
+        try_information_error <- try(testthat::expect_error(swipe_right_old(swipers[[swiper]], 
                                                               profiles[[profile]]), 
                                               "can't decide without informative profile."),
                                      silent = TRUE)
         
-        if (is(try_picture_error,"try-error") && is(try_information_error,"try-error")) {
+        if (is(try_picture_error,"try-error") && is(try_information_error, "try-error")) {
           #if the error is unknown, simply check if the new function also produces an error
           testthat::test_that(
             "both functions have equivalent behaviour",
-            expect_error(swipe_right(swipers[[swiper]], 
+            testthat::expect_error(swipe_right(swipers[[swiper]], 
                                      profiles[[profile]]) 
                          )
           )
         }
-        else if (is(try_information_error,"try-error")) {
+        else if (is(try_information_error, "try-error")) {
           #if the error is known but not caused by a missing profile picture,
           #it must be caused by missing information on the profiles 'likes'
           testthat::test_that(
             "both functions have equivalent behaviour",
-            expect_error(swipe_right(swipers[[swiper]], 
+            testthat::expect_error(swipe_right(swipers[[swiper]], 
                                      profiles[[profile]]), 
                          "can't decide without a picture.")
           )
@@ -244,7 +251,7 @@ test_swipe_right <- function(swipers, profiles) {
           #it must be caused by a missing profile picture
           testthat::test_that(
             "both functions have equivalent behaviour",
-            expect_error(swipe_right(swipers[[swiper]], 
+            testthat::expect_error(swipe_right(swipers[[swiper]], 
                                      profiles[[profile]]), 
                          "can't decide without informative profile.")
           )
@@ -254,7 +261,7 @@ test_swipe_right <- function(swipers, profiles) {
         #if there is no error simply compare the output of both functions
         testthat::test_that(
           "both functions have equivalent behaviour",
-          expect_equal(
+          testthat::expect_equal(
             swipe_right_old(swipers[[swiper]], profiles[[profile]]),
             swipe_right(swipers[[swiper]], profiles[[profile]])
           )
