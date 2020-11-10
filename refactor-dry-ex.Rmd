@@ -6,7 +6,7 @@
 generate_confidence_interval <- function(sample_vector) {
   #check if input is a numerical vector with length >= 2 
   #(otherwise standard deviation cannot be computed)
-  assert_numeric(sample_vector,
+  checkmate::assert_numeric(sample_vector,
                  any.missing = FALSE,
                  min.len = 2)
   
@@ -20,8 +20,13 @@ generate_confidence_interval <- function(sample_vector) {
   return(interval)
 }
 
+#try out for some values
 generate_confidence_interval(runif(100))
 generate_confidence_interval(runif(100)^2)
+generate_confidence_interval(c(NA, NA))
+generate_confidence_interval(2)
+generate_confidence_interval(c("b", "c"))
+
 ``` 
 
 Bei so abscheulichem "copy-paste-modify" Code wie dem hier sollten Sie direkt schweiß*nasse* Hände bekommen, denn "**w**rite **e**verything **t**wice" ist der sichere Weg ins Verderben.  
